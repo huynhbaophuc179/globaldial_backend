@@ -1,15 +1,30 @@
-FROM node:14-alpine
+# FROM node
+
+# WORKDIR /usr/src/app
+
+# ARG NODE_ENV
+# ENV NODE_ENV $NODE_ENV
+
+# COPY package*.json /usr/src/app/
+# RUN npm install
+
+# COPY . /usr/src/app
+
+# ENV PORT 8000
+# EXPOSE $PORT
+# CMD [ "npm", "start" ]
+FROM node
 
 WORKDIR /usr/src/app
 
 ARG NODE_ENV
 ENV NODE_ENV $NODE_ENV
 
-COPY package*.json /usr/src/app/
+COPY package*.json ./
 RUN npm install
 
-COPY . /usr/src/app
+COPY . .
 
-ENV PORT 5000
+ENV PORT 8000
 EXPOSE $PORT
-CMD [ "npm", "start" ]
+CMD [ "node", "./bin/www" ]
