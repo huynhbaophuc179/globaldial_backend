@@ -1,35 +1,80 @@
-
+const { v4: uuidv4 } = require('uuid');
 module.exports = (io, socket) => {
     const emailToSocketIdMap = new Map();
     const socketidToEmailMap = new Map();
-    //queue for connection queuing
-    //queue stores socketID
-    const connectionQueue = [];
+    const roomIdToSocketMap = new Map();
+    const SocketToRoomIdMap = new Map();
 
-    const logfunc = () => {
-        console.log("lmao");
 
-    }
+    //unique queue for connection queuing
+    //unique queue stores socketID
+    const connectionQueue = {
+        set: new Set(),
+        array: [],
+
+        enqueue(item) {
+            if (!this.set.has(item)) {
+                this.set.add(item);
+                this.array.push(item);
+                console.log(`Item ${item} added to the unique queue.`);
+            } else {
+                console.log(`Item ${item} already exists in the unique queue.`);
+            }
+        },
+
+        dequeue() {
+            const item = this.array.shift();
+            if (item !== undefined) {
+                this.set.delete(item);
+                console.log(`Item ${item} removed from the unique queue.`);
+                return item;
+            } else {
+                console.log('The unique queue is empty.');
+                return undefined;
+            }
+        },
+
+        clear() {
+            this.set.clear();
+            this.array.length = 0;
+            console.log('The unique queue has been cleared.');
+        },
+
+        size() {
+            return this.array.length;
+        }
+    };
+
     io.on("connection", (socket) => {
-        console.log(connectionQueue);
+        console.log(connectionQueue.array);
         console.log(`Socket Connected`, socket.id);
 
         //logic for queuing connections
-        const matchConnection = () => {
-            if (connectionQueue.length > 1) {
+        const matchConnection = (email) => {
+
+            if (connectionQueue.size() > 1) {
                 // socket id of the two first socket of the queue
-                cnn1 = connectionQueue.shift()
-                cnn2 = connectionQueue.shift()
+                cnn1 = connectionQueue.dequeue()
+                cnn2 = connectionQueue.dequeue()
+                console.log(cnn1, "+", cnn2);
                 if (cnn1 && cnn2) {
                     console.log("matched" + socketidToEmailMap.get(cnn1));
                     console.log("matched" + socketidToEmailMap.get(cnn2));
-                } else {
-                    console.log("some thing gone wrong");
-                }
+                    const roomId = uuidv4();
+                    roomIdToSocketMap.set(roomId, socket.id);
+                    const newData1 = { email: socketidToEmailMap.get(cnn1), room: roomId }
+                    const newData2 = { email: socketidToEmailMap.get(cnn2), room: roomId }
 
-            }
-            else {
-                console.log("not enough people");
+                    socket.join(roomId);
+                    io.to(cnn2).emit("room:join", newData2);
+                    io.to(cnn1).emit("room:join", newData1);
+                    io.to(cnn1).emit("user:joined", { email: socketidToEmailMap.get(cnn2), id: cnn2 });
+                    io.to(cnn2).emit("user:joined", { email: socketidToEmailMap.get(cnn1), id: cnn1 });
+
+                } else {
+                    console.log("both");
+                    connectionQueue.enqueue(cnn1)
+                }
 
             }
         }
@@ -38,14 +83,29 @@ module.exports = (io, socket) => {
         //     connectionQueue.push(socket.id);
         // })
         socket.on("room:join", (data) => {
+
+            //create a unique room name
+
             const { email, room } = data;
+            // map for tracking reasons
             emailToSocketIdMap.set(email, socket.id);
             socketidToEmailMap.set(socket.id, email);
-            io.to(room).emit("user:joined", { email, id: socket.id });
-            socket.join(room);
-            io.to(socket.id).emit("room:join", data);
-            connectionQueue.push(socket.id);
-            matchConnection()
+
+
+            // used the old logic to create new room and send its data
+            // to preserve the old logic in the frontend side
+
+            //push in to the queue first to ensure the conncurency
+            if (room) {
+                io.to(room).emit("user:joined", { email: email, id: socket.id });
+                socket.join(room)
+            } else {
+                connectionQueue.enqueue(socket.id);
+                console.log(connectionQueue.array);
+                matchConnection(email);
+
+            }
+
         });
 
         socket.on("user:call", ({ to, offer }) => {
