@@ -96,15 +96,12 @@ module.exports = (io, socket) => {
             // to preserve the old logic in the frontend side
 
             //push in to the queue first to ensure the conncurency
-            if (room) {
-                io.to(room).emit("user:joined", { email: email, id: socket.id });
-                socket.join(room)
-            } else {
-                connectionQueue.enqueue(socket.id);
-                console.log(connectionQueue.array);
-                matchConnection(email);
 
-            }
+            connectionQueue.enqueue(socket.id);
+            console.log(connectionQueue.array);
+            matchConnection(email);
+
+
 
         });
 
