@@ -1,8 +1,8 @@
 const { v4: uuidv4 } = require('uuid');
 const validator = require("../utils/Validator")
 const LanguageMap = require("../class/LanguageMap");
-const RoomMap = require("../class/RoomMap");
-
+const TopicMap = require("../class/TopicMap");
+const Room = require("../class/Room")
 module.exports = (io, socket) => {
 
 
@@ -16,85 +16,89 @@ module.exports = (io, socket) => {
         handleConnection(socket) {
             console.log("a user connected:" + socket.id);
             const handleQueue = (connectionQueue) => {
-                connectionQueue.enqueue(socket.id)
-                console.log("queue run");
-                console.log(connectionQueue);
                 console.log("________________________");
-                console.log(connectionQueue.size());
+                console.log("queue run");
+
                 if (connectionQueue.size() > 1) {
-                    const socket_id_1 = connectionQueue.dequeue();
-                    const socket_id_2 = connectionQueue.dequeue();
-                    const isSocketConnected1 = io.sockets.sockets.has(socket_id_1);
-                    const isSocketConnected2 = io.sockets.sockets.has(socket_id_2);
-                    console.log(socket_id_1, "+", socket_id_2);
+                    const roomObj = connectionQueue.dequeue();
+                    const isSocketConnected1 = io.sockets.sockets.has(roomObj.socket1);
+                    const isSocketConnected2 = io.sockets.sockets.has(socket.id);
+
                     if (isSocketConnected1 && isSocketConnected2) {
-                        console.log("matched" + this.socketidToEmailMap.get(socket_id_1));
+                        console.log("matched" + this.socketidToEmailMap.get(roomObj.socket1));
 
-                        const roomId = uuidv4();
-                        const newData1 = { email: this.socketidToEmailMap.get(socket_id_1), room: roomId };
-                        const newData2 = { email: this.socketidToEmailMap.get(socket_id_2), room: roomId };
-
-                        const socket1 = io.sockets.sockets.get(socket_id_1);
-                        io.to(roomId).emit("user:joined", { email: this.socketidToEmailMap.get(socket_id_2), id: socket_id_2 });
-                        socket1.join(roomId)
-                        io.to(socket_id_1).emit("room:join", newData1);
-                        io.to(roomId).emit("user:joined", { email: this.socketidToEmailMap.get(socket_id_2), id: socket_id_2 });
+                        const roomId = roomObj.room
+                        const newData2 = { email: this.socketidToEmailMap.get(socket.id), room: roomId };
+                        io.to(roomId).emit("user:joined", { email: newData2.email, id: socket.id });
                         socket.join(roomId);
-                        io.to(socket_id_2).emit("room:join", { email: newData2.email, room: roomId });
-
-
-
+                        console.log(roomId);
+                        io.to(socket.id).emit("room:join", { email: newData2.email, room: roomId });
 
                     } else {
-
+                        // if one of the connection is not currently available
+                        // for ex. the user turns off the page and closes the socket
+                        // put the connection object back to top
                         if (isSocketConnected1) {
                             console.log("fall back!, enqueued socket 1");
-                            connectionQueue.enqueue(socket_id_1);
+                            connectionQueue.prioritize(roomObj);
+
                         } else {
                             console.log("fall back!, enqueued socket 2");
-                            connectionQueue.enqueue(socket_id_2);
+                            roomObj.socket1 = socket.id
+                            connectionQueue.prioritize(roomObj);
                         }
                     }
                 } else {
-
+                    //if no room is currently existing
+                    //create one an store the socket id and the room id with it
+                    console.log("created new obj");
+                    const roomId = uuidv4();
+                    const roomObj = new Room(roomId, socket.id)
+                    connectionQueue.enqueue(roomObj);
+                    socket.join(roomObj.room);
+                    io.to(socket.id).emit("room:join", { email: this.socketidToEmailMap.get(socket.id), room: roomId });
 
                 }
 
             }
-            const matchRoom = (selectedLanguageMap, room) => {
+            const matchRoom = (selectedLanguageMap, topic) => {
 
-                if (selectedLanguageMap.has(room)) {
-                    console.log("room 1");
-                    console.log(room);
-                    handleQueue(selectedLanguageMap.get(room))
+                if (selectedLanguageMap.has(topic)) {
+                    console.log("topic 1");
+                    console.log(topic);
+                    handleQueue(selectedLanguageMap.get(topic))
                 }
                 else {
-                    console.log("room 2");
-                    selectedLanguageMap.createRoom(room)
-                    handleQueue(selectedLanguageMap.get(room))
+                    console.log("topic 2");
+                    selectedLanguageMap.createTopic(topic)
+                    handleQueue(selectedLanguageMap.get(topic))
                 }
             }
             // Logic for queuing connections
-            const matchConnection = (email, language, room) => {
-                var roomName = validator.isValidString(room) === true ? room : "default"
+            const matchConnection = (email, language, topic) => {
+                console.log("match connection");
+                console.log(language, topic);
+                var topicName = validator.isValidString(topic) === true ? topic : "default"
                 var selectedLanguage = validator.isValidString(language) === true ? language : "default"
+                console.log("current map:", topicName, " ", selectedLanguage);
                 // if the language specified is not a valid language, or the language is null automatically connect it to
                 // the default language from the map
 
                 if (this.languageMap.has(selectedLanguage)) {
-                    //get the room map for the lang if it exist
+                    //get the topic map for the lang if it exist
                     console.log("option 1 lang exist");
-                    matchRoom(this.languageMap.get(selectedLanguage), roomName)
+                    matchRoom(this.languageMap.get(selectedLanguage), topicName)
                 } else {
                     console.log("option 2 lang doesnt exist");
-                    //create the room map for the selected lang if it doesnt exist
+                    //create the topic map for the selected lang if it doesnt exist
                     this.languageMap.createLanguage(selectedLanguage)
-                    matchRoom(this.languageMap.get(selectedLanguage), roomName)
+                    matchRoom(this.languageMap.get(selectedLanguage), topicName)
                 }
-                console.log("match ran");
+                console.log("_____________________________________");
             }
             // Logic to handle disconnection
             socket.on("disconnect", () => {
+
                 const email = this.socketidToEmailMap.get(socket.id);
                 this.emailToSocketIdMap.delete(email);
                 this.socketidToEmailMap.delete(socket.id);
@@ -102,31 +106,33 @@ module.exports = (io, socket) => {
             });
             // entry logic for joining queue
             socket.on("room:join", (data) => {
-                const { email, languague, room } = data;
+                console.log("room:join");
+                const { email, languague, topic } = data;
                 this.emailToSocketIdMap.set(email, socket.id);
                 this.socketidToEmailMap.set(socket.id, email);
-                // connectionQueue.enqueue(socket.id);
-                // console.log(connectionQueue.array);
-
-                matchConnection(validator.trim(languague), validator.trim(languague), validator.trim(room));
+                matchConnection(email, validator.trim(languague), validator.trim(topic));
                 console.log("enqueued");
             });
 
             socket.on("user:call", ({ to, offer }) => {
-                io.to(to).emit("incoming:call", { from: socket.id, offer });
+                console.log("user:call");
+                console.log(to, "+", offer);
+                console.log("check", io.sockets.sockets.has(to));
+                io.to(to).emit("incomming:call", { from: socket.id, offer });
             });
 
             socket.on("call:accepted", ({ to, ans }) => {
+                console.log("call:accepted");
                 io.to(to).emit("call:accepted", { from: socket.id, ans });
             });
 
             socket.on("peer:nego:needed", ({ to, offer }) => {
-                console.log("peer:nego:needed", offer);
+                console.log("peer:nego:needed");
                 io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
             });
 
             socket.on("peer:nego:done", ({ to, ans }) => {
-                console.log("peer:nego:done", ans);
+                console.log("peer:nego:done");
                 io.to(to).emit("peer:nego:final", { from: socket.id, ans });
             });
         }

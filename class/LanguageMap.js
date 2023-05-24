@@ -1,5 +1,5 @@
 const Validator = require("../utils/Validator");
-const RoomMap = require("./RoomMap");
+const RoomMap = require("./TopicMap");
 
 class languageMap extends Map {
     constructor() {

@@ -12,7 +12,14 @@ class ConnectionQueue {
             // Item is already in the queue
         }
     }
-
+    prioritize(item) {
+        if (!this.set.has(item)) {
+            this.set.add(item);
+            this.array.unshift(item);
+        } else {
+            // Item is already in the queue
+        }
+    }
     dequeue() {
         const item = this.array.shift();
         if (item !== undefined) {
