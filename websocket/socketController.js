@@ -118,7 +118,7 @@ module.exports = (io, socket) => {
                 console.log("user:call");
                 console.log(to, "+", offer);
                 console.log("check", io.sockets.sockets.has(to));
-                io.to(to).emit("incomming:call", { from: socket.id, offer });
+                io.to(to).emit("incoming:call", { from: socket.id, offer });
             });
 
             socket.on("call:accepted", ({ to, ans }) => {
