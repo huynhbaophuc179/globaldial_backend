@@ -8,6 +8,7 @@ module.exports = (io, socket) => {
         constructor() {
             this.emailToSocketIdMap = new Map();
             this.socketidToEmailMap = new Map();
+            this.socketIdtoRoom = new Map();
             // added a language map for seperating different languages, each language has different topics (rooms) and each room have a separate queue for connection
             this.languageMap = new LanguageMap();
         }
@@ -26,14 +27,13 @@ module.exports = (io, socket) => {
 
                     if (isSocketConnected1 && isSocketConnected2) {
                         console.log("matched" + this.socketidToEmailMap.get(roomObj.socket1));
-
                         const roomId = roomObj.room
                         const newData2 = { email: this.socketidToEmailMap.get(socket.id), room: roomId };
                         io.to(roomId).emit("user:joined", { email: newData2.email, id: socket.id });
                         socket.join(roomId);
                         console.log(roomId);
                         io.to(socket.id).emit("room:join", { email: newData2.email, room: roomId });
-
+                        this.socketIdtoRoom.set(socket.id, roomId)
                     } else {
                         // if one of the connection is not currently available
                         // for ex. the user turns off the page and closes the socket
@@ -41,7 +41,6 @@ module.exports = (io, socket) => {
                         if (isSocketConnected1) {
                             console.log("fall back!, enqueued socket 1");
                             connectionQueue.prioritize(roomObj);
-
                         } else {
                             console.log("fall back!, enqueued socket 2");
                             roomObj.socket1 = socket.id
@@ -56,13 +55,14 @@ module.exports = (io, socket) => {
                     const roomObj = new Room(roomId, socket.id)
                     connectionQueue.enqueue(roomObj);
                     socket.join(roomObj.room);
+                    console.log("this set socket");
+                    this.socketIdtoRoom.set(socket.id, roomId)
+                    console.log(this.socketIdtoRoom.get(socket.id, roomId));
                     io.to(socket.id).emit("room:join", { email: this.socketidToEmailMap.get(socket.id), room: roomId });
-
                 }
-
             }
-            const matchRoom = (selectedLanguageMap, topic) => {
 
+            const matchRoom = (selectedLanguageMap, topic) => {
                 if (selectedLanguageMap.has(topic)) {
                     console.log("topic 1");
                     console.log(topic);
@@ -98,10 +98,16 @@ module.exports = (io, socket) => {
             }
             // Logic to handle disconnection
             socket.on("disconnect", () => {
-
                 const email = this.socketidToEmailMap.get(socket.id);
                 this.emailToSocketIdMap.delete(email);
                 this.socketidToEmailMap.delete(socket.id);
+                console.log("room la disconnected");
+                console.log(this.socketIdtoRoom);
+                const room = this.socketIdtoRoom.get(socket.id);
+                socket.to(room).emit("call:ended");
+                console.log(room);
+
+                this.socketIdtoRoom.delete(socket.id)
                 console.log("A user disconnected");
             });
             // entry logic for joining queue
