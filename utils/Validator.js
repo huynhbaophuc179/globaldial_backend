@@ -5,9 +5,9 @@ class Validator {
     }
     trim(variable) {
         if (this.isValidString(variable)) {
-            return this.trim(variable);
+            return variable.trim();
         }
-        return variable
+        return variable;
     }
 
 }

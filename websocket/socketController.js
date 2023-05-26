@@ -4,8 +4,6 @@ const LanguageMap = require("../class/LanguageMap");
 const TopicMap = require("../class/TopicMap");
 const Room = require("../class/Room")
 module.exports = (io, socket) => {
-
-
     class NamespaceHandler {
         constructor() {
             this.emailToSocketIdMap = new Map();
@@ -16,10 +14,12 @@ module.exports = (io, socket) => {
         handleConnection(socket) {
             console.log("a user connected:" + socket.id);
             const handleQueue = (connectionQueue) => {
+                console.log(connectionQueue);
                 console.log("________________________");
                 console.log("queue run");
 
                 if (connectionQueue.size() > 1) {
+                    console.log("connection check");
                     const roomObj = connectionQueue.dequeue();
                     const isSocketConnected1 = io.sockets.sockets.has(roomObj.socket1);
                     const isSocketConnected2 = io.sockets.sockets.has(socket.id);
@@ -107,10 +107,10 @@ module.exports = (io, socket) => {
             // entry logic for joining queue
             socket.on("room:join", (data) => {
                 console.log("room:join");
-                const { email, languague, topic } = data;
+                const { email, language, topic } = data;
                 this.emailToSocketIdMap.set(email, socket.id);
                 this.socketidToEmailMap.set(socket.id, email);
-                matchConnection(email, validator.trim(languague), validator.trim(topic));
+                matchConnection(email, validator.trim(language), validator.trim(topic));
                 console.log("enqueued");
             });
 
