@@ -97,6 +97,7 @@ module.exports = (io, socket) => {
                 console.log("_____________________________________");
             }
             // Logic to handle disconnection
+
             socket.on("disconnect", () => {
                 const email = this.socketidToEmailMap.get(socket.id);
                 this.emailToSocketIdMap.delete(email);
@@ -106,7 +107,6 @@ module.exports = (io, socket) => {
                 const room = this.socketIdtoRoom.get(socket.id);
                 socket.to(room).emit("call:ended");
                 console.log(room);
-
                 this.socketIdtoRoom.delete(socket.id)
                 console.log("A user disconnected");
             });
