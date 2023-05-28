@@ -9,7 +9,7 @@ class LanguageController {
     async getLanguage(req, res) {
         try {
             const { codeName, name } = req.query;
-            const { page, limit } = req.body;
+            const { page, limit } = req.query;
             console.log(codeName, name, page, limit);
 
             let query = {};
