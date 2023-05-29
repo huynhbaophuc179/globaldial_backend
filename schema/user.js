@@ -1,17 +1,12 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
-var paymentSchema = new Schema(
+var userSchema = new Schema(
     {
-        paymentItem: { type: String, },
-        paymentAmount: { type: Number, },
-        paymentDescription: { type: String, },
-        paymentBank: { type: String },
-        paymentLanguage: { type: String },
-
+        uid: { type: String },
 
     },
-    { collection: "payment" }
+    { collection: "user" }
 );
-const payment = mongoose.model("payment", paymentSchema);
-module.exports = payment
+const user = mongoose.model("user", userSchema);
+module.exports = user

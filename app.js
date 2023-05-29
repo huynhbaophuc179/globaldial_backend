@@ -5,9 +5,10 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 const connectDB = require("./service/mongooseConnection")
 const cors = require("cors");
-
+const fireApp = require("./service/firebaseService");
+const { getAuth } = require('firebase-admin/auth');
 // routes
-
+let defaultAuth = getAuth(fireApp);
 const routes = require('./routes/app_routes');
 const bodyParser = require('body-parser');
 require('dotenv').config()
@@ -29,14 +30,18 @@ app.use(cors());
 //***************************************** */
 //logic section
 // using all the routes from app_routes
+
+function setDefaultAuth(req, res, next) {
+  req.auth = defaultAuth;
+  next();
+}
+app.use(setDefaultAuth);
+
 app.use('/', routes);
 
 // implement websocket
 
-
 //***************************************** */
-
-
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
