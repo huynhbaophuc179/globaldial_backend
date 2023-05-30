@@ -1,143 +1,152 @@
 const { v4: uuidv4 } = require('uuid');
+const validator = require("../utils/Validator")
+const LanguageMap = require("../class/LanguageMap");
+const TopicMap = require("../class/TopicMap");
+const Room = require("../class/Room")
 module.exports = (io, socket) => {
-    const emailToSocketIdMap = new Map();
-    const socketidToEmailMap = new Map();
-    const roomIdToSocketMap = new Map();
-    const SocketToRoomIdMap = new Map();
-
-
-    //unique queue for connection queuing
-    //unique queue stores socketID
-    const connectionQueue = {
-        set: new Set(),
-        array: [],
-
-        enqueue(item) {
-            if (!this.set.has(item)) {
-                this.set.add(item);
-                this.array.push(item);
-
-            } else {
-
-            }
-        },
-
-        dequeue() {
-            const item = this.array.shift();
-            if (item !== undefined) {
-                this.set.delete(item);
-                console.log(`Item ${item} removed from the unique queue.`);
-                return item;
-            } else {
-
-                return undefined;
-            }
-        },
-
-        clear() {
-            this.set.clear();
-            this.array.length = 0;
-
-        },
-
-        size() {
-            return this.array.length;
+    class NamespaceHandler {
+        constructor() {
+            this.emailToSocketIdMap = new Map();
+            this.socketidToEmailMap = new Map();
+            this.socketIdtoRoom = new Map();
+            // added a language map for seperating different languages, each language has different topics (rooms) and each room have a separate queue for connection
+            this.languageMap = new LanguageMap();
         }
-    };
+        handleConnection(socket) {
+            console.log("a user connected:" + socket.id);
+            const handleQueue = (connectionQueue) => {
+                console.log(connectionQueue);
+                console.log("________________________");
+                console.log("queue run");
 
-    io.on("connection", (socket) => {
-        console.log(connectionQueue.array);
-        console.log(`Socket Connected`, socket.id);
+                if (connectionQueue.size() > 1) {
+                    console.log("connection check");
+                    const roomObj = connectionQueue.dequeue();
+                    const isSocketConnected1 = io.sockets.sockets.has(roomObj.socket1);
+                    const isSocketConnected2 = io.sockets.sockets.has(socket.id);
 
-
-        //logic to handle disconection 
-        socket.on("disconnect", () => {
-            const email = socketidToEmailMap.get(socket.id)
-            emailToSocketIdMap.delete(email)
-            socketidToEmailMap.delete(socket.id)
-            console.log(socketidToEmailMap);
-            console.log(emailToSocketIdMap);
-            console.log(email, " is the mail");
-            console.log("A user disconnected");
-
-        });
-
-        //logic for queuing connections
-        const matchConnection = (email) => {
-
-            if (connectionQueue.size() > 1) {
-                // socket id of the two first socket of the queue
-                socket_id_1 = connectionQueue.dequeue()
-                socket_id_2 = connectionQueue.dequeue()
-                const isSocketConnected1 = io.sockets.sockets.has(socket_id_1);
-                const isSocketConnected2 = io.sockets.sockets.has(socket_id_2);
-                console.log(socket_id_1, "+", socket_id_2);
-                if (isSocketConnected1 && isSocketConnected2) {
-                    console.log("matched" + socketidToEmailMap.get(socket_id_1));
-                    console.log("matched" + socketidToEmailMap.get(socket_id_2));
-                    const roomId = uuidv4();
-                    roomIdToSocketMap.set(roomId, socket.id);
-                    const newData1 = { email: socketidToEmailMap.get(socket_id_1), room: roomId }
-                    const newData2 = { email: socketidToEmailMap.get(socket_id_2), room: roomId }
-
-                    socket.join(roomId);
-                    io.to(socket_id_2).emit("room:join", newData2);
-                    io.to(socket_id_1).emit("room:join", newData1);
-                    io.to(socket_id_1).emit("user:joined", { email: socketidToEmailMap.get(socket_id_2), id: socket_id_2 });
-                    io.to(socket_id_2).emit("user:joined", { email: socketidToEmailMap.get(socket_id_1), id: socket_id_1 });
-
-
+                    if (isSocketConnected1 && isSocketConnected2) {
+                        console.log("matched" + this.socketidToEmailMap.get(roomObj.socket1));
+                        const roomId = roomObj.room
+                        const newData2 = { email: this.socketidToEmailMap.get(socket.id), room: roomId };
+                        io.to(roomId).emit("user:joined", { email: newData2.email, id: socket.id });
+                        socket.join(roomId);
+                        console.log(roomId);
+                        io.to(socket.id).emit("room:join", { email: newData2.email, room: roomId });
+                        this.socketIdtoRoom.set(socket.id, roomId)
+                    } else {
+                        // if one of the connection is not currently available
+                        // for ex. the user turns off the page and closes the socket
+                        // put the connection object back to top
+                        if (isSocketConnected1) {
+                            console.log("fall back!, enqueued socket 1");
+                            connectionQueue.prioritize(roomObj);
+                        } else {
+                            console.log("fall back!, enqueued socket 2");
+                            roomObj.socket1 = socket.id
+                            connectionQueue.prioritize(roomObj);
+                        }
+                    }
                 } else {
-
-                    if (isSocketConnected1) {
-                        console.log("fall back!, enqueued socket 1");
-                        connectionQueue.enqueue(socket_id_1)
-                    }
-                    else {
-                        console.log("fall back!, enqueued socket 2");
-                        connectionQueue.enqueue(socket_id_2)
-                    }
-
+                    //if no room is currently existing
+                    //create one an store the socket id and the room id with it
+                    console.log("created new obj");
+                    const roomId = uuidv4();
+                    const roomObj = new Room(roomId, socket.id)
+                    connectionQueue.enqueue(roomObj);
+                    socket.join(roomObj.room);
+                    console.log("this set socket");
+                    this.socketIdtoRoom.set(socket.id, roomId)
+                    console.log(this.socketIdtoRoom.get(socket.id, roomId));
+                    io.to(socket.id).emit("room:join", { email: this.socketidToEmailMap.get(socket.id), room: roomId });
                 }
-
             }
+
+            const matchRoom = (selectedLanguageMap, topic) => {
+                if (selectedLanguageMap.has(topic)) {
+                    console.log("topic 1");
+                    console.log(topic);
+                    handleQueue(selectedLanguageMap.get(topic))
+                }
+                else {
+                    console.log("topic 2");
+                    selectedLanguageMap.createTopic(topic)
+                    handleQueue(selectedLanguageMap.get(topic))
+                }
+            }
+            // Logic for queuing connections
+            const matchConnection = (email, language, topic) => {
+                console.log("match connection");
+                console.log(language, topic);
+                var topicName = validator.isValidString(topic) === true ? topic : "default"
+                var selectedLanguage = validator.isValidString(language) === true ? language : "default"
+                console.log("current map:", topicName, " ", selectedLanguage);
+                // if the language specified is not a valid language, or the language is null automatically connect it to
+                // the default language from the map
+
+                if (this.languageMap.has(selectedLanguage)) {
+                    //get the topic map for the lang if it exist
+                    console.log("option 1 lang exist");
+                    matchRoom(this.languageMap.get(selectedLanguage), topicName)
+                } else {
+                    console.log("option 2 lang doesnt exist");
+                    //create the topic map for the selected lang if it doesnt exist
+                    this.languageMap.createLanguage(selectedLanguage)
+                    matchRoom(this.languageMap.get(selectedLanguage), topicName)
+                }
+                console.log("_____________________________________");
+            }
+            // Logic to handle disconnection
+
+            socket.on("disconnect", () => {
+                const email = this.socketidToEmailMap.get(socket.id);
+                this.emailToSocketIdMap.delete(email);
+                this.socketidToEmailMap.delete(socket.id);
+                console.log("room la disconnected");
+                console.log(this.socketIdtoRoom);
+                const room = this.socketIdtoRoom.get(socket.id);
+                socket.to(room).emit("call:ended");
+                console.log(room);
+                this.socketIdtoRoom.delete(socket.id)
+                console.log("A user disconnected");
+            });
+            // entry logic for joining queue
+            socket.on("room:join", (data) => {
+                console.log("room:join");
+                const { email, language, topic } = data;
+                this.emailToSocketIdMap.set(email, socket.id);
+                this.socketidToEmailMap.set(socket.id, email);
+                matchConnection(email, validator.trim(language), validator.trim(topic));
+                console.log("enqueued");
+            });
+
+            socket.on("user:call", ({ to, offer }) => {
+                console.log("user:call");
+                console.log(to, "+", offer);
+                console.log("check", io.sockets.sockets.has(to));
+                io.to(to).emit("incoming:call", { from: socket.id, offer });
+            });
+
+            socket.on("call:accepted", ({ to, ans }) => {
+                console.log("call:accepted");
+                io.to(to).emit("call:accepted", { from: socket.id, ans });
+            });
+
+            socket.on("peer:nego:needed", ({ to, offer }) => {
+                console.log("peer:nego:needed");
+                io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
+            });
+
+            socket.on("peer:nego:done", ({ to, ans }) => {
+                console.log("peer:nego:done");
+                io.to(to).emit("peer:nego:final", { from: socket.id, ans });
+            });
         }
+    }
 
-        // socket.on("room:enqueue", (data) => {
-        //     connectionQueue.push(socket.id);
-        // })
-        socket.on("room:join", (data) => {
-            //create a unique room name
-            const { email, room } = data;
-            // map for tracking reasons
-            emailToSocketIdMap.set(email, socket.id);
-            socketidToEmailMap.set(socket.id, email);
-            // used the old logic to create new room and send its data
-            // to preserve the old logic in the frontend side
-            //push in to the queue first to ensure the conncurency
-            connectionQueue.enqueue(socket.id);
-            console.log(connectionQueue.array);
-            matchConnection(email);
-        });
 
-        socket.on("user:call", ({ to, offer }) => {
-            io.to(to).emit("incomming:call", { from: socket.id, offer });
-        });
-
-        socket.on("call:accepted", ({ to, ans }) => {
-            io.to(to).emit("call:accepted", { from: socket.id, ans });
-        });
-
-        socket.on("peer:nego:needed", ({ to, offer }) => {
-            console.log("peer:nego:needed", offer);
-            io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
-        });
-
-        socket.on("peer:nego:done", ({ to, ans }) => {
-            console.log("peer:nego:done", ans);
-            io.to(to).emit("peer:nego:final", { from: socket.id, ans });
-        });
-    });
+    const defaultNameSpaceHandler = new NamespaceHandler();
+    io.on("connection", (socket) => { defaultNameSpaceHandler.handleConnection(socket) });
 
 }
 
