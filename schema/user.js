@@ -3,8 +3,13 @@ const { Schema } = mongoose;
 
 var userSchema = new Schema(
     {
-        uid: { type: String },
-
+        uidFirebase: { type: String, default: null, unique: true },
+        username: { type: String, unique: true },
+        displayName: { type: String },
+        email: { type: String, unique: true },
+        photoUrl: { type: String, default: null },
+        phoneNumber: { type: String, default: null },
+        subcriptionPlan: { type: String, default: 0, enum: [0, 1] }
     },
     { collection: "user" }
 );

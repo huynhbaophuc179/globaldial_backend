@@ -26,6 +26,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.json())
 app.use(cors());
 
+connectDB();
 
 //***************************************** */
 //logic section
@@ -44,7 +45,8 @@ app.use('/', routes);
 //***************************************** */
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
-  next(createError(404));
+  res.status(404)
+  return res.json({ status: 404, message: "Not Found", data: [] })
 });
 
 // error handler
@@ -58,6 +60,5 @@ app.use(function (err, req, res, next) {
   res.render('error');
 });
 
-connectDB();
 
 module.exports = app;
