@@ -1,41 +1,84 @@
+// const fetch = require("node-fetch");
+require("dotenv").config();
 
-// base URL will need to change for production applications
+// Replace Client ID and App secret
+const APP_CLIENT_ID = process.env.PAYPAL_CLIENT_ID_SAND
+const APP_CLIENT_SECRET = process.env.PAYPAL_APP_SECRET_SAND
+console.log("iran");
+console.log(APP_CLIENT_ID);
 const base = "https://api-m.sandbox.paypal.com";
 
-const { PAYPAL_CLIENT_ID, PAYPAL_APP_SECRET } = process.env; // pull from environment variables
+async function createOrder() {
+    const accessToken = await generateAccessToken();
+    const url = `${base}/v2/checkout/orders`;
+    const response = await fetch(url, {
+        method: "post",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+            intent: "CAPTURE",
+            purchase_units: [
+                {
+                    amount: {
+                        currency_code: "USD",
+                        value: "100.00",
+                    },
+                },
+            ],
+        }),
+    });
+    const data = await response.json();
+    return data;
+}
 
-// base URL will need to change for production applications
-const baseURL = {
-    sandbox: "https://api-m.sandbox.paypal.com",
-    production: "https://api-m.paypal.com"
-};
+async function capturePayment(orderId) {
+    const accessToken = await generateAccessToken();
+    const url = `${base}/v2/checkout/orders/${orderId}/capture`;
+    const response = await fetch(url, {
+        method: "post",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+        },
+    });
+    const data = await response.json();
+    return data;
+}
 
-// call this function to create your client token
+async function generateAccessToken() {
+    const auth = Buffer.from(APP_CLIENT_ID + ":" + APP_CLIENT_SECRET).toString("base64");
+    const response = await fetch(`${base}/v1/oauth2/token`, {
+        method: "post",
+        body: "grant_type=client_credentials",
+        headers: {
+            Authorization: `Basic ${auth}`,
+        },
+    });
+    const { access_token } = await response.json();
+    return access_token;
+}
+
 async function generateClientToken() {
     const accessToken = await generateAccessToken();
-    const response = await fetch(`${baseURL.sandbox}/v1/identity/generate-token`, {
-        method: "POST",
+    const response = await fetch(`${base}/v1/identity/generate-token`, {
+        method: "post",
         headers: {
             Authorization: `Bearer ${accessToken}`,
             "Accept-Language": "en_US",
             "Content-Type": "application/json",
         },
     });
-    const data = await response.json();
-    return data.client_token;
+    // console.log('response', response.status);
+    console.log(response);
+    const jsonData = await handleResponse(response);
+    return jsonData.client_token;
 }
 
-// access token is used to authenticate all REST API requests
-async function generateAccessToken() {
-    const auth = Buffer.from(CLIENT_ID + ":" + APP_SECRET).toString("base64");
-    const response = await fetch(`${baseURL.sandbox}/v1/oauth2/token`, {
-        method: "POST",
-        body: "grant_type=client_credentials",
-        headers: {
-            Authorization: `Basic ${auth}`,
-        },
-    });
-    const data = await response.json();
-    console.log(data);
-    return data.access_token;
-}
+module.exports = {
+    createOrder,
+    capturePayment,
+    generateAccessToken,
+    generateClientToken,
+};

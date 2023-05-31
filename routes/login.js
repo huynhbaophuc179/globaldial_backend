@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var User = require("../schema/user");
+const jwt = require('jsonwebtoken');
 /* GET users listing. */
 
 router.post('/', async function (req, res, next) {
@@ -13,12 +14,22 @@ router.post('/', async function (req, res, next) {
         console.log(userMongoData);
         if (userMongoData) {
             console.log("old user detected");
+            const accessToken = jwt.sign(
+                { userId: userMongoData._id },
+                process.env.JWT_SECRET_AT,
+                {
+                    expiresIn: 60 * 2 * 60,
+                }
+            );
+            console.log("Token");
+            console.log(accessToken);
             return res.json({
                 status: 200,
                 message: "Success",
-                data: userMongoData[0]
+                data: { userData: userMongoData, accessToken: accessToken }
 
             })
+
         } else {
             console.log("create new user");
             const newUser = new User({
@@ -31,17 +42,37 @@ router.post('/', async function (req, res, next) {
             })
             const save = await newUser.save()
             console.log(save);
-            return res.json({
-                status: 200,
-                message: "Success",
-                data: UserRecord
+            if (save) {
+                const accessToken = jwt.sign(
+                    { userId: save._id },
+                    process.env.JWT_SECRET_AT,
+                    {
+                        expiresIn: 60 * 2 * 60,
+                    }
+                );
+                console.log("Token");
+                console.log(accessToken);
+                return res.json({
+                    status: 200,
+                    message: "Success",
+                    data: { userRecord: UserRecord, accessToken: accessToken }
 
-            })
+                })
+            }
+            else {
+                return res.status(500).json({
+                    status: 500,
+                    message: "Login Failed, Server Error",
+                    data: {}
+
+                })
+
+            }
         }
     }
     catch (error) {
         console.log('Error fetching user data:', error);
-        res.json({
+        res.status(500).json({
             status: 500,
             message: "Internal Server Error",
             data: []

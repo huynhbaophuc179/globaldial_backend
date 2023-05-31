@@ -7,14 +7,30 @@
 var app = require('../app');
 var debug = require('debug')('demo:server');
 var http = require('http');
-
+const os = require('os');
 /**
  * Get port from environment and store in Express.
  */
 
 var port = normalizePort(process.env.PORT || '8000');
 app.set('port', port);
+function getLocalURL(port) {
+  const networkInterfaces = os.networkInterfaces();
 
+  for (const interfaceName in networkInterfaces) {
+    const interfaces = networkInterfaces[interfaceName];
+
+    for (const iface of interfaces) {
+      // Check for IPv4 and non-internal addresses
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return `http://${iface.address}:${port}`;
+      }
+    }
+  }
+
+  // If no valid IP address is found, fallback to localhost
+  return `http://localhost:${port}`;
+}
 /**
  * Create HTTP server.
  */
@@ -104,4 +120,5 @@ function onListening() {
     ? 'pipe ' + addr
     : 'port ' + addr.port;
   console.log('Listening on ' + bind);
+  console.log("URL", getLocalURL(port));
 }
