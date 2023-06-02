@@ -8,12 +8,14 @@ var app = require('../app');
 var debug = require('debug')('demo:server');
 var http = require('http');
 const os = require('os');
+require("dotenv").config()
 /**
  * Get port from environment and store in Express.
  */
 
 var port = normalizePort(process.env.PORT || '8000');
 app.set('port', port);
+
 function getLocalURL(port) {
   const networkInterfaces = os.networkInterfaces();
 
@@ -31,6 +33,7 @@ function getLocalURL(port) {
   // If no valid IP address is found, fallback to localhost
   return `http://localhost:${port}`;
 }
+
 /**
  * Create HTTP server.
  */
@@ -41,26 +44,39 @@ var server = http.createServer(app);
  * Listen on provided port, on all network interfaces.
  */
 
-
-/**
- * Socket io logic
- */
-
-const { Server } = require("socket.io");
-const socketController = require("../websocket/socketController")
-const io = new Server(server, {
-  cors: true,
-});
-socketController(io)
-
-/**
- * End of Socket io logic
- */
-
-
 server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
+
+/**
+ * Socket IO logic
+ */
+
+const socketMiddleWare = require("../routes/middleware/socketMiddleWare");
+const { Server } = require("socket.io");
+const socketController = require("../websocket/socketController");
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  console.log('Listening on ' + bind);
+  console.log("URL", getLocalURL(port));
+
+  // Socket.IO connection handling
+  const io = new Server(server, {
+    cors: true,
+  });
+
+  io.use(socketMiddleWare.validateAccessToken);
+
+  socketController(io);
+}
+
+/**
+ * End of Socket IO logic
+ */
 
 /**
  * Normalize a port into a number, string, or false.
@@ -108,17 +124,4 @@ function onError(error) {
     default:
       throw error;
   }
-}
-
-/**
- * Event listener for HTTP server "listening" event.
- */
-
-function onListening() {
-  var addr = server.address();
-  var bind = typeof addr === 'string'
-    ? 'pipe ' + addr
-    : 'port ' + addr.port;
-  console.log('Listening on ' + bind);
-  console.log("URL", getLocalURL(port));
 }

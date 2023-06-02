@@ -4,7 +4,7 @@ class customMiddleWare {
     validateAccessToken = (req, res, next) => {
         // Get the authorization header from the request
         const authHeader = req.headers.authorization;
-        // nếu không có token
+        // nếu không có tokena
         console.log(authHeader);
         if (authHeader) {
             // Split the authorization header into the token type and token value
@@ -14,9 +14,11 @@ class customMiddleWare {
                 try {
                     // Verify the access token using the secret key
                     const decoded = jwt.verify(token, process.env.JWT_SECRET_AT);
-
-                    // Attach the decoded token to the request object for use by route handlers
                     req.userId = decoded.userId;
+                    req.plan = decoded.plan;
+                    req.role = decoded.role;
+                    // Attach the decoded token to the request object for use by route handlers
+
 
                     // Call the next middleware function
                     next();

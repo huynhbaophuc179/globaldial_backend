@@ -10,12 +10,19 @@ router.post('/', async function (req, res, next) {
         console.log(uidFirebase);
         const UserRecord = await req.auth.getUser(uidFirebase)
         console.log("Logged in");
+        // console.log(UserRecord);
         const userMongoData = await User.findOne({ uidFirebase: UserRecord.uid })
-        console.log(userMongoData);
+        // console.log(userMongoData);
         if (userMongoData) {
             console.log("old user detected");
+            console.log(process.env.JWT_SECRET_AT);
             const accessToken = jwt.sign(
-                { userId: userMongoData._id },
+                {
+                    userId: userMongoData._id,
+                    plan: userMongoData.plan,
+                    role: userMongoData.roleId
+
+                },
                 process.env.JWT_SECRET_AT,
                 {
                     expiresIn: 60 * 2 * 60,
@@ -37,14 +44,21 @@ router.post('/', async function (req, res, next) {
                 displayName: UserRecord.displayName,
                 email: UserRecord.email,
                 uidFirebase: UserRecord.uid,
-                photoUrl: UserRecord.photoUrl,
-                phoneNumber: UserRecord.phoneNumber
+                photoUrl: UserRecord.photoURL,
+                phoneNumber: UserRecord.phoneNumber,
+
             })
             const save = await newUser.save()
-            console.log(save);
+            // console.log(save);
+            console.log(process.env.JWT_SECRET_AT);
             if (save) {
                 const accessToken = jwt.sign(
-                    { userId: save._id },
+                    {
+                        userId: save._id,
+                        plan: save.plan,
+                        role: save.roleId
+
+                    },
                     process.env.JWT_SECRET_AT,
                     {
                         expiresIn: 60 * 2 * 60,

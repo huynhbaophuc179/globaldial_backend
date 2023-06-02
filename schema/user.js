@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
-
+const ROLE = require("../constants/roles");
+const PLAN = require("../constants/plans");
 var userSchema = new Schema(
     {
         uidFirebase: { type: String, default: null, unique: true },
@@ -9,7 +10,8 @@ var userSchema = new Schema(
         email: { type: String, unique: true },
         photoUrl: { type: String, default: null },
         phoneNumber: { type: String, default: null },
-        subcriptionPlan: { type: String, default: 0, enum: [0, 1] }
+        role: { type: String, enum: [...Object.values(ROLE)], default: ROLE.USER },
+        plan: { type: String, ref: "Plan", enum: [...Object.values(PLAN)], default: PLAN.DEFAULT }
     },
     { collection: "user" }
 );
