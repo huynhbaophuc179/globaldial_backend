@@ -2,19 +2,35 @@ const { v4: uuidv4 } = require('uuid');
 const validator = require("../utils/Validator")
 const LanguageMap = require("../class/LanguageMap");
 const TopicMap = require("../class/TopicMap");
-const Room = require("../class/Room")
+const Room = require("../class/Room");
+
+const PLANS = require('../constants/plans');
+const Topic = require('../schema/topic');
+
 module.exports = (io, socket) => {
     class NamespaceHandler {
-        constructor() {
+        constructor(plan) {
             this.emailToSocketIdMap = new Map();
             this.socketidToEmailMap = new Map();
             this.socketIdtoRoom = new Map();
             // added a language map for seperating different languages, each language has different topics (rooms) and each room have a separate queue for connection
-            this.languageMap = new LanguageMap();
+            this.languageMap = new LanguageMap(plan);
+            this.premiumQueue = new LanguageMap(plan);
+            this.isTopicPremiumIndex = new Map()
+            Topic.find({}).then(
+                (data) => {
+                    data.forEach(element => {
+                        this.isTopicPremiumIndex.set(element._id.toString(), element.isPremium)
+                    });
+                }
+            )
         }
         handleConnection(socket) {
             console.log("a user connected:" + socket.id);
             console.log("User is:" + socket.userId, "\n Plan: " + socket.plan + "\n role:" + socket.plan);
+            console.log("Logic check");
+            console.log(this.languageMap.get("default"))
+            console.log(this.isTopicPremiumIndex);
             const handleQueue = (connectionQueue) => {
                 console.log(connectionQueue);
                 console.log("________________________");
@@ -64,14 +80,17 @@ module.exports = (io, socket) => {
             }
 
             const matchRoom = (selectedLanguageMap, topic) => {
-                if (selectedLanguageMap.has(topic)) {
-                    console.log("topic 1");
+                const isSocketPremium = socket.plan === PLANS.DEFAULT ? false : true
+                // check if the user is a premium user and the topic
+                // the only option that needs to be prevented is when a user
+                // is not a premuim trying to access premium topic
+                // the topic also needs to exist
+                if (isSocketPremium === false && this.isTopicPremiumIndex.get(topic) === true && selectedLanguageMap.has(topic)) {
+                    console.log("non premium user accessing premium topic");
+                    socket.emit("permission:denied")
+                } else {
+                    console.log("topic allowed connection");
                     console.log(topic);
-                    handleQueue(selectedLanguageMap.get(topic))
-                }
-                else {
-                    console.log("topic 2");
-                    selectedLanguageMap.createTopic(topic)
                     handleQueue(selectedLanguageMap.get(topic))
                 }
             }
@@ -118,7 +137,7 @@ module.exports = (io, socket) => {
                 this.emailToSocketIdMap.set(email, socket.id);
                 this.socketidToEmailMap.set(socket.id, email);
                 matchConnection(email, validator.trim(language), validator.trim(topic));
-                console.log("enqueued");
+                console.log("room:join ran");
             });
 
             socket.on("user:call", ({ to, offer }) => {
@@ -144,10 +163,14 @@ module.exports = (io, socket) => {
             });
         }
     }
+    const defaultNameSpaceHandler = new NamespaceHandler(PLANS.DEFAULT);
+    // const premiumNameSpaceHandler = new NamespaceHandler(PLANS.PREMIUM);
+    io.on("connection", (socket) => {
+
+        defaultNameSpaceHandler.handleConnection(socket)
 
 
-    const defaultNameSpaceHandler = new NamespaceHandler();
-    io.on("connection", (socket) => { defaultNameSpaceHandler.handleConnection(socket) });
+    });
 
 }
 
