@@ -26,11 +26,7 @@ module.exports = (io, socket) => {
             )
         }
         handleConnection(socket) {
-            console.log("a user connected:" + socket.id);
-            console.log("User is:" + socket.userId, "\n Plan: " + socket.plan + "\n role:" + socket.plan);
-            console.log("Logic check");
-            console.log(this.languageMap.get("default"))
-            console.log(this.isTopicPremiumIndex);
+
             const handleQueue = (connectionQueue) => {
                 console.log(connectionQueue);
                 console.log("________________________");
