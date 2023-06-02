@@ -9,13 +9,9 @@ const PLANS = require("../constants/plans");
 
 
 class topicMap extends Map {
-    constructor(plan) {
+    constructor() {
         super();
         this.set("default", new connectionQueue())
-        console.log(plan);
-
-
-        console.log("premium");
         Topic.find({}).then(
             (topicData) => {
                 topicData.forEach(element => {
