@@ -1,17 +1,19 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
-
-var paymentSchema = new Schema(
+const ROLE = require("../constants/roles");
+const PLAN = require("../constants/plans");
+var userSchema = new Schema(
     {
-        paymentItem: { type: String, },
-        paymentAmount: { type: Number, },
-        paymentDescription: { type: String, },
-        paymentBank: { type: String },
-        paymentLanguage: { type: String },
-
-
+        uidFirebase: { type: String, default: null, unique: true },
+        username: { type: String, unique: true },
+        displayName: { type: String },
+        email: { type: String, unique: true },
+        photoUrl: { type: String, default: null },
+        phoneNumber: { type: String, default: null },
+        role: { type: String, enum: [...Object.values(ROLE)], default: ROLE.USER },
+        plan: { type: String, ref: "Plan", enum: [...Object.values(PLAN)], default: PLAN.DEFAULT }
     },
-    { collection: "payment" }
+    { collection: "user" }
 );
-const payment = mongoose.model("payment", paymentSchema);
-module.exports = payment
+const user = mongoose.model("user", userSchema);
+module.exports = user

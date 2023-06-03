@@ -1,0 +1,42 @@
+name: Trigger auto deployment for globaldial-backend
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ master ]
+    paths:
+    - '**'
+    - '.github/workflows/globaldial-backend-AutoDeployTrigger-98705761-d910-4cae-b4f2-7c1cf2125925.yml'
+
+  # Allow mannually trigger 
+  workflow_dispatch:
+      
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.GLOBALDIALBACKEND_AZURE_CREDENTIALS }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          appSourcePath: ${{ github.workspace }} 
+          registryUrl: docker.io
+          registryUsername: ${{ secrets.GLOBALDIALBACKEND_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.GLOBALDIALBACKEND_REGISTRY_PASSWORD }}
+          containerAppName: globaldial-backend
+          resourceGroup: globaldial-backend_group
+          imageToBuild: huynhbaophuc179/globaldial-backend:${{ github.sha }}
+          
+
+     
+
