@@ -4,10 +4,6 @@ const Topic = require('../schema/topic');
 const PLANS = require("../constants/plans");
 
 
-
-
-
-
 class topicMap extends Map {
     constructor() {
         super();

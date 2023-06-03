@@ -51,4 +51,83 @@ const socket = useMemo(() => io(`${process.env.REACT_APP_URL}`, { auth: { token:
                     setValue(data.user.email)
 
                 });
-        
+
+
+
+# Constants
+
+    PLANS = {
+    PLUS: 'plus',
+    PREMIUM: 'premium',
+    DEFAULT: 'default'};
+
+    ROLES = {
+    EXPERT: 'expert',
+    USER: 'user'};
+
+# Event to end call (client side):
+    "call:end"
+
+# Expert room events
+
+## Universal events:
+
+### When a user end call (goes offline or leave):
+```
+ "call:ended"
+```
+## <u>The join room and user join room logic is the same as the random calling logic.</u>
+ ### When the user or the expert __join__ the expertRoom the event  <u>__*"room:join"</u> *__ is sent, just like the random queue
+##
+### When a __user__ join the room an ready to call, the event  <u>__*"user:joined"*__</u> is sent to the expert just like the random calling feature
+
+
+
+##
+### Both event <u> __user:join and room:join__  </u>is required to start the conversation, just like the random calling
+
+
+
+#
+# Expert Side
+
+### Expert start accepting calls (goes online):
+
+###  <u>"expertRoom:join" </u> (just like room:join from random calling)
+#
+## Get the next call:
+```
+"expertRoom:nextCall" 
+```
+
+if there are no user currently in queue the server will emit an event:
+```
+ "expertRoom:emptyQueue"
+```
+
+ 
+
+
+
+
+#
+# <u>User Side </u>
+
+## Join an online expert queue:
+```
+"expertRoom:join"
+```
+ (just like room:join from random calling)
+#
+
+## If the expert is not online, the server will emit an event:
+```
+"expertRoom:expertOffline"
+```
+
+## If the expert is currently calling someone, the server will emit an event:
+```
+"expertRoom:enqueued"
+```
+
+

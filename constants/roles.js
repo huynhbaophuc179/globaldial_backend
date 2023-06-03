@@ -2,7 +2,7 @@
 
 // Define the roles as constants
 const ROLES = {
-    MENTOR: 'mentor',
+    EXPERT: 'expert',
     USER: 'user',
     // GUEST: 'guest'
 };
